@@ -1,5 +1,7 @@
 package springticketing.springticketing.service.impl;
 
+import java.time.LocalDate;
+import java.util.Date;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import springticketing.springticketing.models.ApiResponse;
@@ -37,6 +39,7 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
 
 
 
+    @Override
     public ApiResponse getAllBookings(){
         ApiResponse response;
         String token = tokenHolderRequest.getToken();
@@ -53,6 +56,9 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
         }
         return response;
     }
+    
+    
+    
 
     public ApiResponse getAllCanceledBookings(){
         ApiResponse response;
@@ -115,7 +121,7 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
     }
 
     public ApiResponse updateBooking(String id, Booking updatedBookingData) {
-        ApiResponse response;
+        ApiResponse response = new ApiResponse();
         String token = tokenHolderRequest.getToken();
         try {
 
@@ -128,18 +134,22 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
 
                 if(existBooking.isPresent()){
                     Booking existingBooking = existBooking.get();
-                    if(bookingRepository.existsByMovieIdAndSeatNumber(existingBooking.getMovieId(), updatedBookingData.getSeatNumber())){
-                        response =  responseErrorDuplicate(null);
-                    }else if(!existingBooking.getUserId().equalsIgnoreCase(userIdFromToken)){
-                        response =  responseErrorUserNotMatch(null);
-                    }else{
+                    List<String> seatNumbers = updatedBookingData.getSeatNumber();
+                    for(String seatNumber : seatNumbers){
+                        if(bookingRepository.existsByMovieIdAndSeatNumber(existingBooking.getMovieId(), seatNumber)){
+                            response =  responseErrorDuplicate(null);
+                        }else if(!existingBooking.getUserId().equalsIgnoreCase(userIdFromToken)){
+                            response =  responseErrorUserNotMatch(null);
+                        }else{
 
-                        existingBooking.setScreeningTime(updatedBookingData.getScreeningTime());
-                        existingBooking.setSeatNumber(updatedBookingData.getSeatNumber());
-                        existingBooking.setCanceled(updatedBookingData.isCanceled());
-                        Booking data = bookingRepository.save(existingBooking);
-                        response =  responseSuccess(data);
+                            existingBooking.setScreeningTime(updatedBookingData.getScreeningTime());
+                            existingBooking.setSeatNumber(updatedBookingData.getSeatNumber());
+                            existingBooking.setCanceled(updatedBookingData.isCanceled());
+                            Booking data = bookingRepository.save(existingBooking);
+                            response =  responseSuccess(data);
+                        }
                     }
+                    
                 }else{
                     response = responseErrorNotFound(null);
                 }
@@ -182,39 +192,63 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
     }
 
 
-    public ApiResponse saveBooking(Booking booking) {
-        ApiResponse response;
+   public ApiResponse saveBooking(Booking booking) {
+    try {
         String token = tokenHolderRequest.getToken();
 
-        try {
-            if (!jwtUtils.isTokenValid(token)) {
-                response = responseErrorToken(null);
-                return response;
-            }
-
-            Optional<Movie> movie = movieRepository.findById(booking.getMovieId());
-            if (movie.isEmpty()) {
-                response = responseErrorNotFound(null);
-                return response;
-            }
-
-            List<Booking> existingBooking = bookingRepository.
-                    findByMovieIdAndSeatNumberAndScreeningTime(booking.getMovieId(), booking.getSeatNumber(), 
-                            booking.getScreeningTime());
-            if (existingBooking!=null && !existingBooking.isEmpty()) {
-                response = responseErrorDuplicate(null);
-                return response;
-            }
-
-            String userIdFromToken = jwtUtils.getUserIdFromToken(token);
-            booking.setUserId(userIdFromToken);
-            Booking savedBooking = bookingRepository.save(booking);
-            response = responseSuccess(savedBooking);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            response = responseErrorGeneral(e.getMessage());
+        // Check if the token is valid
+        if (!jwtUtils.isTokenValid(token)) {
+            return responseErrorToken(null);
         }
-        return response;
+
+        // Retrieve the movie by ID
+        Optional<Movie> movie = movieRepository.findById(booking.getMovieId());
+        
+        // If movie not found, return error response
+        if (movie.isEmpty()) {
+            return responseErrorNotFound(null);
+        }
+
+        // Check for existing bookings with the same movie ID, seat number, and screening time
+        // Check for existing bookings with the same movie ID, seat number, and screening time
+        for (String seatNumber : booking.getSeatNumber()) {
+            List<Booking> existingBookings = bookingRepository.findByMovieIdAndSeatNumberAndScreeningTime(
+                    booking.getMovieId(), seatNumber, booking.getScreeningTime());
+
+            // If there are existing bookings for any seat number, return error response
+            if (!existingBookings.isEmpty()) {
+                return responseErrorDuplicate(null);
+            }
+        }
+
+
+        // Get user ID from token
+        String userIdFromToken = jwtUtils.getUserIdFromToken(token);
+        booking.setUserId(userIdFromToken);
+
+        // Get current date
+        Date currentDate = new Date();
+        
+        // Get screening date from the movie
+        Date screeningDate = movie.get().getReleaseDate();
+
+        // Check if the booking date is before the screening date
+        if (currentDate.before(screeningDate)) {
+            // If the booking date is before the screening date, set the booking status to "Aktif"
+            booking.setStatus("Aktif");
+        } else {
+            // Otherwise, set the booking status to "Berhasil"
+            booking.setStatus("Berhasil");
+        }
+
+        // Save the booking
+        Booking savedBooking = bookingRepository.save(booking);
+        return responseSuccess(savedBooking);
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        return responseErrorGeneral(e.getMessage());
     }
+}
+
 }

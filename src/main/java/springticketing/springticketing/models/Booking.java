@@ -10,6 +10,7 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -19,11 +20,12 @@ public class Booking {
 
     @Id
     private String id;
-    private String seatNumber;
+    private List<String> seatNumber;
     private Date screeningDate;
     private String screeningTime;
     private boolean isCanceled = false;
     private String movieId;
     private String userId;
+    private String status;
 
 }
