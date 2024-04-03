@@ -22,7 +22,7 @@ public class JwtUtils extends ResponseServiceImpl {
     UserService userService;
 
     private String secret;
-    private final long accessTokenValidity = 10000 ; // 1 menit
+    private final long accessTokenValidity = 3600000  ; // 1 menit
 
     @Autowired
     public void setSecret(@Value("${jwt.secret-key}") String secret){
