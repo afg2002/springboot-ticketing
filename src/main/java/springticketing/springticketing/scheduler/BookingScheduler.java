@@ -19,7 +19,7 @@ public class BookingScheduler {
     private BookingService bookingService;
 
       
-    @Scheduled(cron = "0 */1 * ? * *")
+    @Scheduled(cron = "0 */30 * ? * *")
     public void updateExpiredBookings() {
         ApiResponse expiredBookingsResponse = bookingService.getAllBookings();
 

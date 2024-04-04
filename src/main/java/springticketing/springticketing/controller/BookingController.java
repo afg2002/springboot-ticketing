@@ -6,20 +6,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import springticketing.springticketing.models.ApiResponse;
 import springticketing.springticketing.models.Booking;
-import springticketing.springticketing.models.Movie;
-import springticketing.springticketing.models.User;
 import springticketing.springticketing.service.BookingService;
 import springticketing.springticketing.service.MovieService;
 import springticketing.springticketing.service.UserService;
-import springticketing.springticketing.service.impl.BookingServiceImpl;
-import springticketing.springticketing.service.impl.MovieServiceImpl;
-import springticketing.springticketing.service.impl.UserServiceImpl;
 import springticketing.springticketing.utility.JwtUtils;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+
 
 @RestController @RequestMapping("/api/booking")
 @CrossOrigin(origins = "http://localhost:8081", maxAge = 3600) // Ganti dengan origin yang diizinkan
@@ -79,4 +71,6 @@ public class BookingController {
         ApiResponse response = bookingService.getAllCanceledBookings();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+    
+    
 }

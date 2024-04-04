@@ -4,17 +4,12 @@ package springticketing.springticketing.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import springticketing.springticketing.models.ApiResponse;
 import springticketing.springticketing.models.Movie;
 import springticketing.springticketing.service.MovieService;
 import springticketing.springticketing.utility.JwtUtils;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @RestController @RequestMapping("/api/movies")
 @CrossOrigin(origins = "http://localhost:8081", maxAge = 3600) // Ganti dengan origin yang diizinkan

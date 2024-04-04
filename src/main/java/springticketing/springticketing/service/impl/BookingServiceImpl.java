@@ -47,7 +47,7 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
             response = responseErrorToken(null);
         }else{
             String userId = jwtUtils.getUserIdFromToken(token);
-            List<Booking> booking = bookingRepository.findByUserIdAndIsCanceled(userId, false);
+            List<Booking> booking = bookingRepository.findAll();
             if(booking.isEmpty()){
                 response = responseErrorNotFound(null);
             }else{
@@ -179,7 +179,7 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
                     response = responseErrorUserNotMatch(null);
                 }else{
                     Booking booking = existedBooking.get();
-                    booking.setCanceled(true);
+                    booking.setStatus("Cancel");
                     Booking updatedBooking = bookingRepository.save(booking);
                     response = responseSuccess(updatedBooking);
                 }
