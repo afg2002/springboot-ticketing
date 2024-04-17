@@ -71,6 +71,12 @@ public class BookingController {
         ApiResponse response = bookingService.getAllCanceledBookings();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
-    
+
+
+    @GetMapping("/expired-bookings")
+    public ResponseEntity<Object> getAllExpiredBookings(){
+        ApiResponse response = bookingService.getAllExpiredBookings();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
     
 }

@@ -13,5 +13,7 @@ public interface BookingService {
     public ApiResponse getAllCanceledBookings();
     public ApiResponse getBookingByMovieIdAndScreeningTime(String movieId, String screeningTime);
     public ApiResponse getAllBookings();
+
+    public ApiResponse getAllExpiredBookings();
     
 }

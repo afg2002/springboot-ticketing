@@ -1,7 +1,9 @@
 package springticketing.springticketing.service.impl;
 
-import java.time.LocalDate;
-import java.util.Date;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import springticketing.springticketing.models.ApiResponse;
@@ -13,10 +15,6 @@ import springticketing.springticketing.repository.UserRepository;
 import springticketing.springticketing.request.TokenHolderRequest;
 import springticketing.springticketing.service.BookingService;
 import springticketing.springticketing.utility.JwtUtils;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 
 @Service
@@ -47,7 +45,7 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
             response = responseErrorToken(null);
         }else{
             String userId = jwtUtils.getUserIdFromToken(token);
-            List<Booking> booking = bookingRepository.findAll();
+            List<Booking> booking = bookingRepository.findByUserId(userId);
             if(booking.isEmpty()){
                 response = responseErrorNotFound(null);
             }else{
@@ -56,9 +54,66 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
         }
         return response;
     }
-    
-    
-    
+
+
+    // Untuk scheduler
+    public ApiResponse getAllExpiredBookings() {
+        ApiResponse response;
+        try {
+            // Mendapatkan waktu saat ini
+            Date currentTime = new Date();
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String currentDateTime = dateFormat.format(currentTime);
+            System.out.println("Sekarang " + currentDateTime);
+
+            // Ambil semua booking
+            List<Booking> allBookings = bookingRepository.findAll();
+
+            // Daftar booking yang telah kedaluwarsa
+            List<Booking> expiredBookings = allBookings.stream()
+                    // Filter booking yang memiliki screeningDate sudah kadaluarsa
+                    .filter(booking -> isBookingExpired(booking, currentTime))
+                    .collect(Collectors.toList());
+
+            // Berhasil: kembalikan daftar booking yang telah kedaluwarsa
+            response = responseSuccess(expiredBookings);
+        } catch (Exception e) {
+            // Jika terjadi kesalahan, membuat respons error
+            e.printStackTrace();
+            response = responseErrorGeneral(e.getMessage());
+        }
+        return response;
+    }
+
+    // Method untuk memeriksa apakah booking telah kedaluwarsa
+    private boolean isBookingExpired(Booking booking, Date currentTime) {
+        try {
+            // Mendapatkan waktu screening dari booking
+            SimpleDateFormat timeFormatter = new SimpleDateFormat("HH:mm");
+            Date screeningTime = timeFormatter.parse(booking.getScreeningTime());
+            System.out.println(booking.getScreeningTime());
+            // Menggabungkan tanggal saat ini dengan waktu screening dari booking
+            Calendar currentDateTime = Calendar.getInstance();
+//            System.out.println(currentDateTime);
+            Calendar screeningDateTime = Calendar.getInstance();
+            screeningDateTime.setTime(screeningTime);
+            System.out.println("Screening Time :" + screeningTime);
+            screeningDateTime.set(Calendar.YEAR, currentDateTime.get(Calendar.YEAR));
+            screeningDateTime.set(Calendar.MONTH, currentDateTime.get(Calendar.MONTH));
+            screeningDateTime.set(Calendar.DAY_OF_MONTH, currentDateTime.get(Calendar.DAY_OF_MONTH));
+
+            Date time = screeningDateTime.getTime();
+            System.out.println(time);
+            System.out.println(currentTime);
+
+            // Jika waktu screening sudah lewat dari waktu saat ini, maka booking sudah kadaluwarsa
+            return time.before(currentTime);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 
     public ApiResponse getAllCanceledBookings(){
         ApiResponse response;
@@ -196,26 +251,21 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
     try {
         String token = tokenHolderRequest.getToken();
 
-        // Check if the token is valid
         if (!jwtUtils.isTokenValid(token)) {
             return responseErrorToken(null);
         }
 
-        // Retrieve the movie by ID
         Optional<Movie> movie = movieRepository.findById(booking.getMovieId());
         
-        // If movie not found, return error response
         if (movie.isEmpty()) {
             return responseErrorNotFound(null);
         }
 
-        // Check for existing bookings with the same movie ID, seat number, and screening time
-        // Check for existing bookings with the same movie ID, seat number, and screening time
         for (String seatNumber : booking.getSeatNumber()) {
-            List<Booking> existingBookings = bookingRepository.findByMovieIdAndSeatNumberAndScreeningTime(
-                    booking.getMovieId(), seatNumber, booking.getScreeningTime());
+            List<String> statuses = Arrays.asList("Aktif", "Berhasil");
+            List<Booking> existingBookings = bookingRepository.findByMovieIdAndSeatNumberAndScreeningTimeAndStatus(
+                    booking.getMovieId(), seatNumber, booking.getScreeningTime(), statuses);
 
-            // If there are existing bookings for any seat number, return error response
             if (!existingBookings.isEmpty()) {
                 return responseErrorDuplicate(null);
             }
