@@ -13,11 +13,9 @@ public interface BookingRepository extends MongoRepository<Booking,String> {
 
     @Query("{ 'userId' : ?0, 'isCanceled' : false }")
     List<Booking> findByUserId(String userId);
-    
-    List<Booking> findByMovieIdAndSeatNumberAndScreeningTimeAndStatus(String movieId, String seatNumber, String screeningTime, List<String> status);
+
+
+    List<Booking> findByMovieIdAndSeatNumberAndScreeningTimeAndStatusIn(String movieId, List<String> seatNumber, String screeningTime,List<String> statuses);
     List<Booking> findByMovieIdAndScreeningTime(String movieId,String screeningTime);
     Boolean existsByMovieIdAndSeatNumber(String movieId, String seatNumber);
-
-    @Query("{ 'screeningDate': { $lt: ?0 }, 'screeningTime': { $lt: ?1 }, 'status': { $ne: 'Cancel' } }")
-    List<Booking> findAllExpiredBookings(Date currentDate, String currentTime);
 }

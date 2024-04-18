@@ -57,57 +57,49 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
 
 
     // Untuk scheduler
-    public ApiResponse getAllExpiredBookings() {
-        ApiResponse response;
-        try {
-            // Mendapatkan waktu saat ini
-            Date currentTime = new Date();
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            String currentDateTime = dateFormat.format(currentTime);
-            System.out.println("Sekarang " + currentDateTime);
+        public ApiResponse getAllExpiredBookingsAndUpdateStatus() {
+            ApiResponse response;
+            try {
+                // Mendapatkan waktu saat ini
+                Date currentTime = new Date();
+                // Ambil semua booking
+                List<Booking> allBookings = bookingRepository.findAll();
 
-            // Ambil semua booking
-            List<Booking> allBookings = bookingRepository.findAll();
+                // Daftar booking yang telah kedaluwarsa
+                List<Booking> expiredBookings = allBookings.stream()
+                        // Filter booking yang memiliki screeningDate sudah kadaluarsa dan status masih aktif
+                        .filter(booking -> isBookingExpired(booking, currentTime) && booking.getStatus().equalsIgnoreCase("Aktif"))
+                        .collect(Collectors.toList());
 
-            // Daftar booking yang telah kedaluwarsa
-            List<Booking> expiredBookings = allBookings.stream()
-                    // Filter booking yang memiliki screeningDate sudah kadaluarsa
-                    .filter(booking -> isBookingExpired(booking, currentTime))
-                    .collect(Collectors.toList());
+                // Mengupdate status booking menjadi "Berhasil" untuk setiap booking yang telah kedaluwarsa
+                for (Booking booking : expiredBookings) {
+                    booking.setStatus("Berhasil");
+                    bookingRepository.save(booking); // Menyimpan perubahan status booking ke database
+                }
 
-            // Berhasil: kembalikan daftar booking yang telah kedaluwarsa
-            response = responseSuccess(expiredBookings);
-        } catch (Exception e) {
-            // Jika terjadi kesalahan, membuat respons error
-            e.printStackTrace();
-            response = responseErrorGeneral(e.getMessage());
+                // Berhasil: kembalikan daftar booking yang telah kedaluwarsa
+                response = responseSuccess(expiredBookings);
+            } catch (Exception e) {
+                // Jika terjadi kesalahan, membuat respons error
+                e.printStackTrace();
+                response = responseErrorGeneral(e.getMessage());
+            }
+            return response;
         }
-        return response;
-    }
 
     // Method untuk memeriksa apakah booking telah kedaluwarsa
     private boolean isBookingExpired(Booking booking, Date currentTime) {
         try {
-            // Mendapatkan waktu screening dari booking
-            SimpleDateFormat timeFormatter = new SimpleDateFormat("HH:mm");
-            Date screeningTime = timeFormatter.parse(booking.getScreeningTime());
-            System.out.println(booking.getScreeningTime());
-            // Menggabungkan tanggal saat ini dengan waktu screening dari booking
-            Calendar currentDateTime = Calendar.getInstance();
-//            System.out.println(currentDateTime);
-            Calendar screeningDateTime = Calendar.getInstance();
-            screeningDateTime.setTime(screeningTime);
-            System.out.println("Screening Time :" + screeningTime);
-            screeningDateTime.set(Calendar.YEAR, currentDateTime.get(Calendar.YEAR));
-            screeningDateTime.set(Calendar.MONTH, currentDateTime.get(Calendar.MONTH));
-            screeningDateTime.set(Calendar.DAY_OF_MONTH, currentDateTime.get(Calendar.DAY_OF_MONTH));
-
-            Date time = screeningDateTime.getTime();
-            System.out.println(time);
+            Date bookingScreeningDate = booking.getScreeningDate();
+            String screeningTime = booking.getScreeningTime();
+            String[] arrHoursAndMinutesSeparator = screeningTime.split(":");
+            bookingScreeningDate.setHours(Integer.parseInt(arrHoursAndMinutesSeparator[0]));
+            bookingScreeningDate.setMinutes(Integer.parseInt(arrHoursAndMinutesSeparator[1]));
+            System.out.println(bookingScreeningDate);
             System.out.println(currentTime);
 
             // Jika waktu screening sudah lewat dari waktu saat ini, maka booking sudah kadaluwarsa
-            return time.before(currentTime);
+            return bookingScreeningDate.before(currentTime);
         } catch (Exception e) {
             e.printStackTrace();
             return false;
@@ -247,58 +239,69 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
     }
 
 
-   public ApiResponse saveBooking(Booking booking) {
-    try {
-        String token = tokenHolderRequest.getToken();
+    public ApiResponse saveBooking(Booking booking) {
+        try {
+            String token = tokenHolderRequest.getToken();
 
-        if (!jwtUtils.isTokenValid(token)) {
-            return responseErrorToken(null);
-        }
+            if (!jwtUtils.isTokenValid(token)) {
+                return responseErrorToken(null);
+            }
 
-        Optional<Movie> movie = movieRepository.findById(booking.getMovieId());
-        
-        if (movie.isEmpty()) {
-            return responseErrorNotFound(null);
-        }
+            Optional<Movie> movie = movieRepository.findById(booking.getMovieId());
 
-        for (String seatNumber : booking.getSeatNumber()) {
-            List<String> statuses = Arrays.asList("Aktif", "Berhasil");
-            List<Booking> existingBookings = bookingRepository.findByMovieIdAndSeatNumberAndScreeningTimeAndStatus(
-                    booking.getMovieId(), seatNumber, booking.getScreeningTime(), statuses);
+            if (movie.isEmpty()) {
+                return responseErrorNotFound(null);
+            }
 
+            // Mengumpulkan semua nomor kursi dari booking yang baru
+            List<String> seatNumbers = booking.getSeatNumber();
+            System.out.println(booking);
+            System.out.println(seatNumbers);
+            System.out.println(booking.getMovieId());
+
+            // Mencari semua booking yang memiliki nomor kursi yang sama dengan booking yang baru ditambahkan
+                List<Booking> existingBookings = bookingRepository.findByMovieIdAndSeatNumberAndScreeningTimeAndStatusIn(
+                    booking.getMovieId(), seatNumbers, booking.getScreeningTime(),Arrays.asList("Aktif", "Berhasil")
+                );
+
+            System.out.println( existingBookings);
+
+            // Jika ada booking yang sudah ada dengan nomor kursi yang sama, kembalikan respons error
             if (!existingBookings.isEmpty()) {
                 return responseErrorDuplicate(null);
             }
+
+            // Get user ID from token
+            String userIdFromToken = jwtUtils.getUserIdFromToken(token);
+            booking.setUserId(userIdFromToken);
+
+            // Get current date
+            Date currentDate = new Date();
+
+            // Get screening date from the movie
+            Date screeningDate = movie.get().getReleaseDate();
+
+            // Check if the booking date is before the screening date
+            if (currentDate.before(screeningDate)) {
+                // If the booking date is before the screening date, set the booking status to "Aktif"
+                booking.setStatus("Aktif");
+            } else {
+                // Otherwise, set the booking status to "Berhasil"
+                booking.setStatus("Berhasil");
+            }
+
+            // Save the booking
+            Booking savedBooking = bookingRepository.save(booking);
+            return responseSuccess(savedBooking);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return responseErrorGeneral(e.getMessage());
         }
-
-
-        // Get user ID from token
-        String userIdFromToken = jwtUtils.getUserIdFromToken(token);
-        booking.setUserId(userIdFromToken);
-
-        // Get current date
-        Date currentDate = new Date();
-        
-        // Get screening date from the movie
-        Date screeningDate = movie.get().getReleaseDate();
-
-        // Check if the booking date is before the screening date
-        if (currentDate.before(screeningDate)) {
-            // If the booking date is before the screening date, set the booking status to "Aktif"
-            booking.setStatus("Aktif");
-        } else {
-            // Otherwise, set the booking status to "Berhasil"
-            booking.setStatus("Berhasil");
-        }
-
-        // Save the booking
-        Booking savedBooking = bookingRepository.save(booking);
-        return responseSuccess(savedBooking);
-
-    } catch (Exception e) {
-        e.printStackTrace();
-        return responseErrorGeneral(e.getMessage());
     }
-}
+
+
+
 
 }
+
