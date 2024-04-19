@@ -63,12 +63,13 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
                 // Mendapatkan waktu saat ini
                 Date currentTime = new Date();
                 // Ambil semua booking
-                List<Booking> allBookings = bookingRepository.findAll();
+                List<Booking> allBookings = bookingRepository.getAllExpiredBookingsByStatus("Aktif");
+
 
                 // Daftar booking yang telah kedaluwarsa
                 List<Booking> expiredBookings = allBookings.stream()
-                        // Filter booking yang memiliki screeningDate sudah kadaluarsa dan status masih aktif
-                        .filter(booking -> isBookingExpired(booking, currentTime) && booking.getStatus().equalsIgnoreCase("Aktif"))
+                        // Filter booking yang memiliki screeningDate sudah kadaluarsa
+                        .filter(booking -> isBookingExpired(booking, currentTime)  && booking.getStatus().equalsIgnoreCase("Aktif") )
                         .collect(Collectors.toList());
 
                 // Mengupdate status booking menjadi "Berhasil" untuk setiap booking yang telah kedaluwarsa
@@ -255,9 +256,7 @@ public class BookingServiceImpl extends ResponseServiceImpl implements BookingSe
 
             // Mengumpulkan semua nomor kursi dari booking yang baru
             List<String> seatNumbers = booking.getSeatNumber();
-            System.out.println(booking);
-            System.out.println(seatNumbers);
-            System.out.println(booking.getMovieId());
+
 
             // Mencari semua booking yang memiliki nomor kursi yang sama dengan booking yang baru ditambahkan
                 List<Booking> existingBookings = bookingRepository.findByMovieIdAndSeatNumberAndScreeningTimeAndStatusIn(
