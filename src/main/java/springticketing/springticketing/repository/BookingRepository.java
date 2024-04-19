@@ -14,6 +14,8 @@ public interface BookingRepository extends MongoRepository<Booking,String> {
     @Query("{ 'userId' : ?0, 'isCanceled' : false }")
     List<Booking> findByUserId(String userId);
 
+    List<Booking> getAllExpiredBookingsByStatus(String status);
+
 
     List<Booking> findByMovieIdAndSeatNumberAndScreeningTimeAndStatusIn(String movieId, List<String> seatNumber, String screeningTime,List<String> statuses);
     List<Booking> findByMovieIdAndScreeningTime(String movieId,String screeningTime);
