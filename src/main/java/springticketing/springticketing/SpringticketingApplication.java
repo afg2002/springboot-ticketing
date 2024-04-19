@@ -11,7 +11,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 
 
 @SpringBootApplication
-@EnableScheduling
 public class SpringticketingApplication {
 
 	public static void main(String[] args)	 {
